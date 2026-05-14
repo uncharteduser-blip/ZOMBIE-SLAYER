@@ -3,109 +3,124 @@ using UnityEngine;
 public class HouseInteraction : MonoBehaviour
 {
     public Transform insidePoint;
-    public Transform outsidePoint; // door position
+    public Transform outsidePoint;
 
     private bool nearDoor = false;
     private bool isInside = false;
 
     public GameObject player;
+
     float insideTimer = 0f;
-    public float maxInsideTime = 5f; // seconds
+    public float maxInsideTime = 5f;
 
-
-
+    // ENTRY COOLDOWN
+    public float enterCooldown = 3f;
+    private float nextEnterTime = 0f;
 
     void Update()
-{
-    if (nearDoor && Input.GetKeyDown(KeyCode.E))
     {
-        if (!isInside)
+        // ENTER / EXIT
+        if (nearDoor && Time.time >= nextEnterTime && Input.GetKeyDown(KeyCode.E))
         {
-            EnterHouse();
+            if (!isInside)
+            {
+                EnterHouse();
+            }
+            else
+            {
+                ExitHouse();
+            }
         }
-        else
+
+        // INSIDE TIMER
+        if (isInside)
         {
-            ExitHouse();
+            insideTimer += Time.deltaTime;
+
+            if (insideTimer >= maxInsideTime)
+            {
+                ExitHouse();
+            }
         }
     }
 
-    // LIMIT STAY TIME
-    if (isInside)
+    void EnterHouse()
     {
-        insideTimer += Time.deltaTime;
+        isInside = true;
 
-        if (insideTimer >= maxInsideTime)
-        {
-            ExitHouse();
-        }
+        player.transform.position = insidePoint.position;
+
+        // Hide player
+        player.GetComponent<SpriteRenderer>().enabled = false;
+
+        // Disable physics
+        Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+        rb.simulated = false;
+        rb.linearVelocity = Vector2.zero;
+
+        // Disable movement
+        Playermovement pm = player.GetComponent<Playermovement>();
+        pm.enabled = false;
+
+        // Healing
+        PlayerHealth ph = player.GetComponent<PlayerHealth>();
+        ph.StartHealing();
+        ph.isHealing = true;
+        ph.isInsideHouse = true;
+
+        Debug.Log("Entered House");
     }
-}
-    
 
-   void EnterHouse()
-{
-    isInside = true;
+    void ExitHouse()
+    {
+        isInside = false;
+        insideTimer = 0f;
 
-    player.transform.position = insidePoint.position;
+        // START COOLDOWN
+        nextEnterTime = Time.time + enterCooldown;
 
-    player.GetComponent<SpriteRenderer>().enabled = false;
-    player.GetComponent<Rigidbody2D>().simulated = false;
+        // Move player outside
+        player.transform.position = outsidePoint.position;
 
-    player.GetComponent<PlayerHealth>().StartHealing(); 
-    player.GetComponent<PlayerHealth>().isHealing = true;
-    player.GetComponent<PlayerHealth>().isInsideHouse = true;
-}
+        // Enable visuals
+        player.GetComponent<SpriteRenderer>().enabled = true;
 
+        // Enable physics
+        Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
+        rb.simulated = true;
+        rb.linearVelocity = Vector2.zero;
 
+        // Enable movement
+        Playermovement pm = player.GetComponent<Playermovement>();
+        pm.enabled = true;
 
-  void ExitHouse()
-{
-    isInside = false;
-    insideTimer = 0f;
-    Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
-    rb.simulated = true;
-    rb.linearVelocity = Vector2.zero;
-    // Move player outside
-    player.transform.position = outsidePoint.position;
+        // Reset animation
+        Animator anim = player.GetComponent<Animator>();
+        anim.SetBool("isMoving", false);
 
-    // Enable visuals
-    player.GetComponent<SpriteRenderer>().enabled = true;
+        // Reset healing
+        PlayerHealth ph = player.GetComponent<PlayerHealth>();
+        ph.isInsideHouse = false;
+        ph.isHealing = false;
 
-    // Enable movement
-    Playermovement pm = player.GetComponent<Playermovement>();
-    pm.enabled = true;
-
-    //  RESET MOVEMENT STATE
-   // Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
-    //rb.linearVelocity = Vector2.zero;
-
-    // Reset animation (optional but good)
-    Animator anim = player.GetComponent<Animator>();
-    anim.SetBool("isMoving", false);
-
-    // Reset health state
-    PlayerHealth ph = player.GetComponent<PlayerHealth>();
-    ph.isInsideHouse = false;
-    ph.isHealing = false;
-
-    Debug.Log("Exited House");
-}
+        Debug.Log("Exited House");
+    }
 
     void OnTriggerEnter2D(Collider2D other)
-{   Debug.Log("TRIGGER WORKING");
-    if (other.CompareTag("Player"))
     {
-        nearDoor = true;
-        Debug.Log("Near Door TRUE");
+        if (other.CompareTag("Player"))
+        {
+            nearDoor = true;
+            Debug.Log("Near Door TRUE");
+        }
     }
-}
 
-void OnTriggerExit2D(Collider2D other)
-{
-    if (other.CompareTag("Player"))
+    void OnTriggerExit2D(Collider2D other)
     {
-        nearDoor = false;
-        Debug.Log("Near Door FALSE");
+        if (other.CompareTag("Player"))
+        {
+            nearDoor = false;
+            Debug.Log("Near Door FALSE");
+        }
     }
-}
 }
